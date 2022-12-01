@@ -1,11 +1,14 @@
 """Performs test of age prediction model on input data folders.
+
 Usage:
   build_vessel_tree.py [options] <terminals.csv> <output-dir>
   build_vessel_tree.py -h | --help
   build_vessel_tree.py --version
+
 Arguments:
   <terminals.csv>	        Path to csv file with terminals coordinates.
   <output-dir>              Path where to store results.
+
 Options:
   -h --help		            Show this screen.
   --version		            Show version.
@@ -16,14 +19,12 @@ from typing import Any, Optional
 
 from docopt import docopt
 from loguru import logger
-import matplotlib.pyplot as plt
 import numpy as np
-from sympy import Point3D, Segment3D
-from tqdm import tqdm
-from open3d import geometry, io
+import trimesh.creation as tc
 
 from akle.cco import constants
 from akle.cco import optimize
+from akle.cco.geometry import Point3D, Segment3D
 from akle.cco.vessel import Vessel
 
 
@@ -51,8 +52,9 @@ def main(args: dict[str, Optional[Any]]):
     logger.debug(args)
 
     coordinates_file = Path(args['<terminals.csv>'])
-    root_inlet = Point3D(_get_coordinates(coordinates_file))
-    root_outlet = Point3D(_get_coordinates(coordinates_file))
+    points_generator = _get_coordinates(coordinates_file)
+    root_inlet = Point3D(*next(points_generator))
+    root_outlet = Point3D(*next(points_generator))
 
     root_vessel = Vessel(inlet=root_inlet,
                          outlet=root_outlet,
@@ -64,21 +66,16 @@ def main(args: dict[str, Optional[Any]]):
                         'tree': [root_vessel]}
 
     for terminal in _get_coordinates(coordinates_file):
-        optimize.add_terminal(Point3D(terminal), vascular_network)
+        optimize.add_terminal(Point3D(*terminal), vascular_network)
 
     out_dir = Path(args['<output-dir>'])
 
     for i, vessel in enumerate(vascular_network['tree']):
-        cylinder = geometry.TriangleMesh.create_cylinder(vessel.radius, vessel.length)
-        center = Segment3D(vessel.outlet, vessel.inlet).midpoint
-        direction = vessel.outlet - vessel.inlet
-        rot = _rotation_matrix_from_vectors(np.array([0, 0, 1]), np.array(direction.coordinates))
-        cylinder.rotate(R=rot)
-        cylinder.translate(translation=np.array(center.coordinates))
         output_filename = out_dir / f'vessel_{i:03d}.ply'
-        io.write_triangle_mesh(str(output_filename), cylinder, write_ascii=True)
+        cylinder = tc.cylinder(radius=vessel.radius,
+                               segment=np.vstack([vessel.outlet.coordinates, vessel.inlet.coordinates]))
+        cylinder.export(output_filename)
 
 
 if __name__ == '__main__':
     main(docopt(__doc__, version='build_vessel_tree.py 0.1.0'))
-    plt.close('all')

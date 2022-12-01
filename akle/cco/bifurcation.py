@@ -1,7 +1,8 @@
 import numpy as np
-from sympy import Point3D, Segment3D
+from tqdm import tqdm
 
 from akle.cco import constants
+from akle.cco.geometry import Point3D, Segment3D
 from akle.cco.vessel import pressure_drop_on_segment, radius_from_pressure_drop, Vessel
 
 
@@ -112,13 +113,13 @@ class Bifurcation:
         f1 = self.son.flow
         f2 = self.daughter.flow
 
-        for _ in range(num_iterations):
+        for _ in tqdm(range(num_iterations)):
             weights = np.array([r0 ** 2 / l0, r1 ** 2 / l1, r2 ** 2 / l2])
             denominator = np.sum(weights)
 
             x_new = np.sum(xs * weights) / denominator
             y_new = np.sum(ys * weights) / denominator
-            z_new = np.sum(xs * weights) / denominator
+            z_new = np.sum(zs * weights) / denominator
 
             new_terminal = Point3D(x_new, y_new, z_new)
 

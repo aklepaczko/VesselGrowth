@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from sympy import Point3D, Segment3D
 
 from akle.cco import constants
+from akle.cco.geometry import Point3D, Segment3D
 
 
 def pressure_drop_on_segment(flow, length, radius):
@@ -36,7 +36,7 @@ class Vessel:
         self.son = None
         self.daughter = None
         self.is_parent = False
-        self.has_parent = False
+        self.has_parent = parent is not None
         self.radius = radius_from_pressure_drop(flow=self.flow,
                                                 length=self.length,
                                                 pressure_drop=pressure_in - pressure_out)

@@ -1,11 +1,10 @@
 from copy import copy
 
 from loguru import logger
-import numpy as np
-from sympy import Point3D, Segment3D
 
 from akle.cco import constants
 from akle.cco.bifurcation import Bifurcation
+from akle.cco.geometry import Point3D, Segment3D
 from akle.cco.vessel import pressure_drop_on_segment, radius_from_pressure_drop, Vessel
 
 
