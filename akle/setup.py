@@ -41,6 +41,7 @@ setup(
         'loguru',
         'matplotlib',
         'numpy',
+        'open3d',
         'scipy',
         'sympy',
         'tqdm',

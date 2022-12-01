@@ -19,8 +19,6 @@ def radius_from_pressure_drop(flow, length, pressure_drop):
 
 class Vessel:
 
-    count: int = 0
-
     def __init__(self,
                  inlet: Point3D,
                  outlet: Point3D,
@@ -42,8 +40,6 @@ class Vessel:
         self.radius = radius_from_pressure_drop(flow=self.flow,
                                                 length=self.length,
                                                 pressure_drop=pressure_in - pressure_out)
-        self.vessel_id = Vessel.count
-        Vessel.count += 1
 
     @property
     def inlet(self):

@@ -1,8 +1,11 @@
+from copy import copy
+
 from loguru import logger
 import numpy as np
 from sympy import Point3D, Segment3D
 
 from akle.cco import constants
+from akle.cco.bifurcation import Bifurcation
 from akle.cco.vessel import pressure_drop_on_segment, radius_from_pressure_drop, Vessel
 
 
@@ -107,8 +110,54 @@ def optimize_subtree(top_vessel: Vessel, vessels: list[Vessel]):
             top_vessel.pressure_in = pb_in
 
 
-def add_terminal(new: Point3D, vascular_network: list[Vessel]):
-    parent_vessel = get_nearest_vessel_to_point(new, vascular_network)
-    logger.info(f'Found nearest vessel id: {parent_vessel.vessel_id}. Optimizing bifurcation point')
+def add_terminal(new_terminal: Point3D, vascular_network: dict[str, Vessel | list[Vessel]]):
+    old_parent = get_nearest_vessel_to_point(new_terminal, vascular_network['tree'])
+    logger.info('Found nearest vessel. Optimizing bifurcation point...')
 
-    pass
+    b = Bifurcation(bifurcating_vessel=old_parent,
+                    new_terminal_point=new_terminal)
+    b.optimize_bifurcation(num_iterations=10)
+
+    logger.info('Bifurcation point optimized. Replacing parent vessel with new bifurcation...')
+
+    new_son = copy(b.son)
+    if old_parent.is_parent:
+        new_son.set_children(old_parent.son, old_parent.daughter)
+
+    new_daughter = copy(b.daughter)
+    new_parent = copy(b.parent)
+
+    new_parent.set_children(new_son, new_daughter)
+
+    if old_parent.has_parent:
+        new_parent.parent = old_parent.parent
+        if old_parent.parent.son == old_parent:
+            old_parent.parent.set_children(new_parent, old_parent.parent.daughter)
+        else:
+            old_parent.parent.set_children(old_parent.parent.son, new_parent)
+    else:
+        vascular_network['root'] = new_parent
+        logger.info('Changed root to new vessel.')
+
+    vascular_network['root'].accumulate_flow()
+    vascular_network['tree'].remove(old_parent)
+    old_parent.delete_vessel(False)
+
+    vascular_network['tree'] += [new_parent]
+    vascular_network['tree'] += [new_son]
+    vascular_network['tree'] += [new_daughter]
+    del b
+
+    logger.info('Recalculating all network radii and pressures...')
+
+    optimize_subtree(top_vessel=vascular_network['root'],
+                     vessels=vascular_network['tree'])
+
+    p_in = vascular_network['root'].pressure_in
+    nominator = p_in - constants.PRESSURE_OUTLETS_PASCAL
+    denominator = (constants.PRESSURE_ENTRY_PASCAL - constants.PRESSURE_OUTLETS_PASCAL)
+    global_factor = (nominator / denominator) ** 0.25
+
+    logger.info('Globally scaling radii...')
+
+    scale_radii_and_update_pressures_down_subtree(vascular_network['root'], global_factor)
