@@ -1,24 +1,21 @@
+from loguru import logger
 import numpy as np
 from sympy import Point3D, Segment3D
 
 from akle.cco import constants
-from akle.cco.vessel import radius_from_pressure_drop, Vessel
+from akle.cco.vessel import pressure_drop_on_segment, radius_from_pressure_drop, Vessel
 
 
-def _pressure_drop(flow, length, radius):
-    return 8 * flow * constants.BLOOD_VISCOSITY_PASCAL_SEC * length / (np.pi * (radius ** 4))
-
-
-def get_nearest_vessel_to_point(terminal: Point3D, vessels: list[Vessel]) -> int:
-    index = 0
+def get_nearest_vessel_to_point(terminal: Point3D, vessels: list[Vessel]) -> Vessel:
+    nearest_vessel = None
     min_distance = 1e10
     for vessel in vessels:
         vessel_segment = Segment3D(vessel.inlet, vessel.outlet)
         distance = vessel_segment.distance(terminal)
         if distance < min_distance:
             min_distance = distance
-            index = vessel.vessel_id
-    return index
+            nearest_vessel = vessel
+    return nearest_vessel
 
 
 def scale_radii_and_update_pressures_down_subtree(top_vessel: Vessel, scaling_factor: float):
@@ -33,7 +30,7 @@ def scale_radii_and_update_pressures_down_subtree(top_vessel: Vessel, scaling_fa
     top_vessel.radius = r0
     f0 = top_vessel.flow
     l0 = top_vessel.length
-    p_in = p_out + _pressure_drop(f0, l0, r0)
+    p_in = p_out + pressure_drop_on_segment(f0, l0, r0)
     top_vessel.pressure_in = p_in
 
 
@@ -53,8 +50,8 @@ def optimize_subtree(top_vessel: Vessel, vessels: list[Vessel]):
             l1 = top_vessel.son.length
             l2 = top_vessel.daughter.length
 
-            pb1 = p1_out + _pressure_drop(f1, l1, r1)
-            pb2 = p2_out + _pressure_drop(f2, l2, r2)
+            pb1 = p1_out + pressure_drop_on_segment(f1, l1, r1)
+            pb2 = p2_out + pressure_drop_on_segment(f2, l2, r2)
 
             pb_out = pb1
             if pb1 > pb2:
@@ -74,7 +71,7 @@ def optimize_subtree(top_vessel: Vessel, vessels: list[Vessel]):
                                                     constants.BIFURCATION_LAW_POWER)
             f0 = top_vessel.flow
             l0 = top_vessel.length
-            pb_in = pb_out + _pressure_drop(f0, l0, r0)
+            pb_in = pb_out + pressure_drop_on_segment(f0, l0, r0)
             top_vessel.pressure_in = pb_in
             top_vessel.radius = r0
         else:
@@ -106,5 +103,12 @@ def optimize_subtree(top_vessel: Vessel, vessels: list[Vessel]):
 
             f0 = top_vessel.flow
             l0 = top_vessel.length
-            pb_in = pb_out + _pressure_drop(f0, l0, r0)
+            pb_in = pb_out + pressure_drop_on_segment(f0, l0, r0)
             top_vessel.pressure_in = pb_in
+
+
+def add_terminal(new: Point3D, vascular_network: list[Vessel]):
+    parent_vessel = get_nearest_vessel_to_point(new, vascular_network)
+    logger.info(f'Found nearest vessel id: {parent_vessel.vessel_id}. Optimizing bifurcation point')
+
+    pass

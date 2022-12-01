@@ -7,6 +7,10 @@ from sympy import Point3D, Segment3D
 from akle.cco import constants
 
 
+def pressure_drop_on_segment(flow, length, radius):
+    return 8 * flow * constants.BLOOD_VISCOSITY_PASCAL_SEC * length / (np.pi * (radius ** 4))
+
+
 def radius_from_pressure_drop(flow, length, pressure_drop):
     nominator = 8 * flow * constants.BLOOD_VISCOSITY_PASCAL_SEC * length
     denominator = np.pi * pressure_drop
@@ -23,13 +27,13 @@ class Vessel:
                  flow: float,
                  pressure_in: float,
                  pressure_out: float,
-                 parent: Optional[Vessel]):
-        self.inlet = inlet
-        self.outlet = outlet
+                 parent: Optional[Vessel] = None):
+        self._inlet = inlet
+        self._outlet = outlet
         self.length = Segment3D(inlet, outlet).length
         self.flow = flow
-        self.pressure_in: pressure_in
-        self.pressure_out: pressure_out
+        self.pressure_in = pressure_in
+        self.pressure_out = pressure_out
         self.parent = parent
         self.son = None
         self.daughter = None
@@ -41,9 +45,33 @@ class Vessel:
         self.vessel_id = Vessel.count
         Vessel.count += 1
 
+    @property
+    def inlet(self):
+        return self._inlet
+
+    @inlet.setter
+    def inlet(self, val):
+        self._inlet = val
+        self.length = Segment3D(self._inlet, self._outlet).length
+
+    @property
+    def outlet(self):
+        return self._outlet
+
+    @outlet.setter
+    def outlet(self, val):
+        self._outlet = val
+        self.length = Segment3D(self._inlet, self._outlet).length
+
     def clear_parent(self):
         self.parent = None
         self.has_parent = False
+
+    def delete_vessel(self, with_subtree: bool):
+        self.clear_parent()
+        if self.is_parent and with_subtree:
+            self.son.delete_vessel(with_subtree)
+            self.daughter.delete_vessel(with_subtree)
 
     def get_volume(self):
         return np.pi * (self.radius ** 2) * self.length
