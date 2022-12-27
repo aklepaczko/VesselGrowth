@@ -65,13 +65,14 @@ def main(args: dict[str, Optional[Any]]):
     vascular_network = {'root': root_vessel,
                         'tree': [root_vessel]}
 
-    for terminal in _get_coordinates(coordinates_file):
+    for terminal in points_generator:
+        logger.debug(f'Processing new terminal... {terminal}')
         optimize.add_terminal(Point3D(*terminal), vascular_network)
 
     out_dir = Path(args['<output-dir>'])
 
     for i, vessel in enumerate(vascular_network['tree']):
-        output_filename = out_dir / f'vessel_{i:03d}.ply'
+        output_filename = out_dir / f'vessel_{vessel.index:03d}.ply'
         cylinder = tc.cylinder(radius=vessel.radius,
                                segment=np.vstack([vessel.outlet.coordinates, vessel.inlet.coordinates]))
         cylinder.export(output_filename)

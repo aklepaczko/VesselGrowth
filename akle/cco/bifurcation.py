@@ -1,5 +1,5 @@
 import numpy as np
-from tqdm import tqdm
+import scipy.optimize as optim
 
 from akle.cco import constants
 from akle.cco.geometry import Point3D, Segment3D
@@ -82,79 +82,55 @@ class Bifurcation:
         return self.parent.get_volume() + self.son.get_volume() + self.daughter.get_volume()
 
     def optimize_bifurcation(self, num_iterations: int):
-        current_volume = self.bifurcation_volume()
-        volume_increase = current_volume - self.init_volume
-        min_increase = volume_increase
-        best_point = self.parent.outlet
 
-        x0 = self.parent.inlet.x
-        x1 = self.son.outlet.x
-        x2 = self.daughter.outlet.x
-        xs = np.array([x0, x1, x2])
+        def _objective(x):
+            _l0 = np.linalg.norm(self.parent.inlet.coordinates - x)
+            _l1 = np.linalg.norm(self.son.outlet.coordinates - x)
+            _l2 = np.linalg.norm(self.daughter.outlet.coordinates - x)
 
-        y0 = self.parent.inlet.y
-        y1 = self.son.outlet.y
-        y2 = self.daughter.outlet.y
-        ys = np.array([y0, y1, y2])
+            _bifurcation_pressure = self.son.pressure_out + pressure_drop_on_segment(f1, _l1, r1)
 
-        z0 = self.parent.inlet.z
-        z1 = self.son.outlet.z
-        z2 = self.daughter.outlet.z
-        zs = np.array([z0, z1, z2])
+            _r2 = radius_from_pressure_drop(f2, _l2, _bifurcation_pressure - constants.PRESSURE_OUTLETS_PASCAL)
 
-        r0 = self.parent.radius
-        r1 = self.son.radius
-        r2 = self.daughter.radius
+            _r0 = Vessel.radius_from_bifurcation_law(parent=self.parent,
+                                                     son=self.son,
+                                                     daughter=self.daughter,
+                                                     gamma=constants.BIFURCATION_LAW_POWER)
 
-        l0 = self.parent.length
-        l1 = self.son.length
-        l2 = self.daughter.length
+            volume = _r0 ** 2 * _l0 + r1 ** 2 * _l1 + _r2 ** 2 * _l2
+            return volume
+
+        def _length_constraint(x):
+            _l0 = np.linalg.norm(self.parent.inlet.coordinates - x)
+            _l1 = np.linalg.norm(self.son.outlet.coordinates - x)
+            _l2 = np.linalg.norm(self.daughter.outlet.coordinates - x)
+
+            _r0 = self.parent.radius
+            _r1 = self.son.radius
+            _r2 = self.daughter.radius
+
+            return [_l0 - 2 * _r0, _l1 - 2 * _r1, _l2 - 2 * _r2]
 
         f1 = self.son.flow
         f2 = self.daughter.flow
+        r1 = self.son.radius
 
-        for _ in tqdm(range(num_iterations)):
-            weights = np.array([r0 ** 2 / l0, r1 ** 2 / l1, r2 ** 2 / l2])
-            denominator = np.sum(weights)
+        opts = {'maxiter': num_iterations,
+                'disp': True,
+                'verbose': True}
 
-            x_new = np.sum(xs * weights) / denominator
-            y_new = np.sum(ys * weights) / denominator
-            z_new = np.sum(zs * weights) / denominator
+        non_linear = optim.NonlinearConstraint(_length_constraint, 0, np.inf)
 
-            new_terminal = Point3D(x_new, y_new, z_new)
+        x0 = self.son.inlet.coordinates
+        res = optim.minimize(_objective,
+                             x0,
+                             method='trust-constr',
+                             constraints=[non_linear],
+                             options=opts)
 
-            self.parent.outlet = new_terminal
-            self.son.inlet = new_terminal
-            self.daughter.inlet = new_terminal
-
-            l0 = self.parent.length
-            l1 = self.son.length
-            l2 = self.daughter.length
-
-            bifurcation_pressure = self.son.pressure_out + pressure_drop_on_segment(f1, l1, r1)
-            self.parent.pressure_out = bifurcation_pressure
-            self.son.pressure_in = bifurcation_pressure
-            self.daughter.pressure_in = bifurcation_pressure
-
-            r2 = radius_from_pressure_drop(f2, l2, bifurcation_pressure - constants.PRESSURE_OUTLETS_PASCAL)
-            self.daughter.radius = r2
-
-            r0 = Vessel.radius_from_bifurcation_law(parent=self.parent,
-                                                    son=self.son,
-                                                    daughter=self.daughter,
-                                                    gamma=constants.BIFURCATION_LAW_POWER)
-            self.parent.radius = r0
-
-            current_volume = self.bifurcation_volume()
-            volume_increase = current_volume - self.init_volume
-
-            if volume_increase < min_increase:
-                min_increase = volume_increase
-                best_point = self.parent.outlet
-
-        self.parent.outlet = best_point
-        self.son.inlet = best_point
-        self.daughter.inlet = best_point
+        self.parent.outlet = Point3D(*res.x)
+        self.son.inlet = Point3D(*res.x)
+        self.daughter.inlet = Point3D(*res.x)
 
         l1 = self.son.length
         l2 = self.daughter.length

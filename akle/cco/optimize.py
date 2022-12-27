@@ -111,11 +111,11 @@ def optimize_subtree(top_vessel: Vessel, vessels: list[Vessel]):
 
 def add_terminal(new_terminal: Point3D, vascular_network: dict[str, Vessel | list[Vessel]]):
     old_parent = get_nearest_vessel_to_point(new_terminal, vascular_network['tree'])
-    logger.info('Found nearest vessel. Optimizing bifurcation point...')
+    logger.info(f'Found nearest vessel with index {old_parent.index}. Optimizing bifurcation point...')
 
     b = Bifurcation(bifurcating_vessel=old_parent,
                     new_terminal_point=new_terminal)
-    b.optimize_bifurcation(num_iterations=10)
+    b.optimize_bifurcation(num_iterations=100)
 
     logger.info('Bifurcation point optimized. Replacing parent vessel with new bifurcation...')
 

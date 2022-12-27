@@ -1,4 +1,5 @@
 import numpy as np
+import sympy
 
 
 class Point3D:
@@ -39,9 +40,13 @@ class Segment3D:
         return Point3D(center[0], center[1], center[2])
 
     def distance(self, p: Point3D):
-        vec_0 = self.end.coordinates - self.start.coordinates
-        vec_1 = p.coordinates - self.start.coordinates
-
-        cross = np.cross(vec_0, vec_1)
-
-        return np.linalg.norm(cross) / np.linalg.norm(vec_0)
+        # vec_0 = self.end.coordinates - self.start.coordinates
+        # vec_1 = self.start.coordinates - p.coordinates
+        #
+        # cross = np.cross(vec_0, vec_1)
+        #
+        # return np.linalg.norm(cross) / np.linalg.norm(vec_0)
+        ps = sympy.Point3D(p.coordinates)
+        seg = sympy.Segment3D(sympy.Point(self.end.coordinates), sympy.Point(self.start.coordinates))
+        d = seg.distance(ps)
+        return float(d)
