@@ -17,12 +17,15 @@ import csv
 from pathlib import Path
 from typing import Any, Optional
 
+import networkx as nx
 from docopt import docopt
 from loguru import logger
 import numpy as np
+import pandas as pd
 import trimesh.creation as tc
 
 from akle.cco import constants
+from akle.cco import graph_operations
 from akle.cco import optimize
 from akle.cco.geometry import Point3D, Segment3D
 from akle.cco.vessel import Vessel
@@ -76,6 +79,29 @@ def main(args: dict[str, Optional[Any]]):
         cylinder = tc.cylinder(radius=vessel.radius,
                                segment=np.vstack([vessel.outlet.coordinates, vessel.inlet.coordinates]))
         cylinder.export(output_filename)
+
+    graph = graph_operations.create_vasculature_graph(vascular_network)
+    for node in graph.nodes:
+        if not node.is_parent:
+            path = nx.shortest_path(graph, vascular_network['root'], node)
+            coords = [vascular_network['root'].inlet.coordinates]
+            radii = [np.array([0, vascular_network['root'].radius])]
+            len_accu = 0
+            for vessel in path:
+                coords += [vessel.outlet.coordinates]
+                len_accu += vessel.length
+                radii += [np.array([len_accu, vessel.radius])]
+            coords = np.vstack(coords)
+            df = pd.DataFrame(data=coords,
+                              columns=['x', 'y', 'z'])
+            output_filename = out_dir / f'branch_{path[-1].index:03d}.txt'
+            df.to_csv(output_filename, sep=',', index=False)
+            radii = np.vstack(radii)
+            radii[:, 0] /= len_accu
+            output_filename = out_dir / f'radii_{path[-1].index:03d}.txt'
+            df = pd.DataFrame(data=radii,
+                              columns=['l', 'radius'])
+            df.to_csv(output_filename, sep=',', index=False)
 
 
 if __name__ == '__main__':
