@@ -29,7 +29,7 @@ def main(args: dict[str, Optional[Any]]):
     num_terminals = int(args['--count'])
     perfusion_volume_radius = float(args['--radius'])
 
-    radii = np.random.random_sample(num_terminals) * perfusion_volume_radius
+    radii = 0.9 * perfusion_volume_radius + np.random.random_sample(num_terminals) * perfusion_volume_radius / 10
     azimuths = np.random.random_sample(num_terminals) * 2 * np.pi
     elevations = np.random.rand(num_terminals) * np.pi
 
@@ -38,7 +38,7 @@ def main(args: dict[str, Optional[Any]]):
     zz = radii * np.cos(elevations)
 
     terminals = np.concatenate([xx[:, None], yy[:, None], zz[:, None]], axis=1)
-    terminals = np.vstack([np.array([perfusion_volume_radius, 0, 0]), terminals])
+    terminals = np.vstack([np.array([-perfusion_volume_radius, 0, 0]), terminals])
     df = pd.DataFrame(data=terminals,
                       columns=['x', 'y', 'z'])
     output_filename = args['<terminals.csv>']

@@ -27,7 +27,7 @@ import trimesh.creation as tc
 from akle.cco import constants
 from akle.cco import graph_operations
 from akle.cco import optimize
-from akle.cco.geometry import Point3D, Segment3D
+from akle.cco.geometry import Point3D
 from akle.cco.vessel import Vessel
 
 
