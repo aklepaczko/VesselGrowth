@@ -85,16 +85,23 @@ def main(args: dict[str, Optional[Any]]):
         if not node.is_parent:
             path = nx.shortest_path(graph, vascular_network['root'], node)
             coords = [vascular_network['root'].inlet.coordinates]
-            radii = [np.array([0, vascular_network['root'].radius])]
+            radii = []
             len_accu = 0
             for vessel in path:
                 coords += [vessel.outlet.coordinates]
-                len_accu += vessel.length
                 radii += [np.array([len_accu, vessel.radius])]
+                len_accu += vessel.length
+            radii += [np.array([len_accu, 0.95 * radii[-1][1]])]
             coords = np.vstack(coords)
             df = pd.DataFrame(data=coords,
                               columns=['x', 'y', 'z'])
             output_filename = out_dir / f'branch_{path[-1].index:03d}.txt'
+            df.to_csv(output_filename, sep=',', index=False)
+
+            df = pd.DataFrame(data=np.array([coords[0, :],
+                                             coords[1, :] - coords[0, :]]),
+                              columns=['x', 'y', 'z'])
+            output_filename = out_dir / f'cylinder_{path[-1].index:03d}.txt'
             df.to_csv(output_filename, sep=',', index=False)
             radii = np.vstack(radii)
             radii[:, 0] /= len_accu
