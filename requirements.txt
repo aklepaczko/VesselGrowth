@@ -6,6 +6,7 @@ numpy==1.23.5
 pandas==1.5.2
 scipy==1.9.3
 setuptools==60.2.0
+shapely==2.0.0
 sympy==1.11.1
 tqdm==4.64.1
 trimesh==3.17.0

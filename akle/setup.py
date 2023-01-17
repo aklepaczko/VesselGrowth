@@ -45,6 +45,7 @@ setup(
         'open3d',
         'pandas',
         'scipy',
+        'shapely',
         'sympy',
         'tqdm',
     ],

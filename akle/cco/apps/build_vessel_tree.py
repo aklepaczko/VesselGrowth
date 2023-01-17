@@ -22,6 +22,8 @@ from docopt import docopt
 from loguru import logger
 import numpy as np
 import pandas as pd
+from shapely.geometry import LineString, Point
+from shapely.ops import unary_union
 import trimesh.creation as tc
 
 from akle.cco import constants
@@ -92,7 +94,12 @@ def main(args: dict[str, Optional[Any]]):
                 radii += [np.array([len_accu, vessel.radius])]
                 len_accu += vessel.length
             radii += [np.array([len_accu, 0.95 * radii[-1][1]])]
-            coords = np.vstack(coords)
+            line = LineString(coords)
+            distances = np.arange(0, line.length, step=3)
+            points = [line.interpolate(d) for d in distances]
+            inter_coords = [np.array(p.coords) for p in points]
+            inter_coords += [coords[-1]]
+            coords = np.vstack(inter_coords)
             df = pd.DataFrame(data=coords,
                               columns=['x', 'y', 'z'])
             output_filename = out_dir / f'branch_{path[-1].index:03d}.txt'
