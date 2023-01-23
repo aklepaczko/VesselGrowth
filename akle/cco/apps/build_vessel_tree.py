@@ -86,10 +86,17 @@ def main(args: dict[str, Optional[Any]]):
     for node in graph.nodes:
         if not node.is_parent:
             path = nx.shortest_path(graph, vascular_network['root'], node)
-            coords = [vascular_network['root'].inlet.coordinates]
+            path_to_dump = [node]
+            if node.parent.son == node:
+                for parent_node in reversed(path[:-1]):
+                    path_to_dump += [parent_node]
+                    if parent_node.has_parent and parent_node.parent.daughter == parent_node:
+                        break
+            path_to_dump = path_to_dump[::-1]
+            coords = [path_to_dump[0].inlet.coordinates]
             radii = []
             len_accu = 0
-            for vessel in path:
+            for vessel in path_to_dump:
                 coords += [vessel.outlet.coordinates]
                 radii += [np.array([len_accu, vessel.radius])]
                 len_accu += vessel.length
